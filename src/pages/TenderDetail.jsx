@@ -2,9 +2,9 @@ import { useState } from 'react'
 import { useParams, useNavigate } from 'react-router-dom'
 import {
   Box, Card, CardContent, Typography, Stack, Chip, Avatar, Button, IconButton,
-  TextField, Grid, MenuItem, Snackbar, Alert
+  TextField, Grid, MenuItem, Snackbar, Alert, Link
 } from '@mui/material'
-import { ArrowBack, Save, Send } from '@mui/icons-material'
+import { ArrowBack, Save, Send, Launch } from '@mui/icons-material'
 import {
   useDoc, useSubcollection, addSubdoc, updateDocById, useCollection, createDoc, generateCode
 } from '../utils/firestoreHooks'
@@ -12,7 +12,7 @@ import { Timestamp } from 'firebase/firestore'
 import { useAuth } from '../contexts/AuthContext'
 import {
   ALL_TENDER_STATUS, tenderStatusLabel, tenderStatusColor, TenderAuthorities,
-  canSeeTenders, roleLabel
+  TenderPortals, WARRANTY_OPTIONS, CMC_OPTIONS, canSeeTenders, roleLabel
 } from '../utils/models'
 import { formatINRFull, daysUntil, formatDateTime, formatDate, relativeTime, initials } from '../utils/format'
 
@@ -102,8 +102,8 @@ export default function TenderDetail() {
     }
   }
 
-  const handleReassign = async (newUid) => {
-    const newU = eligibleAssignees.find(u => u.uid === newUid)
+  const handleReassign = async (newId) => {
+    const newU = eligibleAssignees.find(u => u.id === newId || u.uid === newId)
     if (!newU) return
     try {
       const oldUid = tender.assignedTo
@@ -111,8 +111,8 @@ export default function TenderDetail() {
       await updateDocById('tenders', id, {
         assignedTo: newU.uid,
         assignedToName: newU.name,
-        previousAssignedTo: oldUid,
-        previousAssignedToName: oldName,
+        previousAssignedTo: oldUid || null,
+        previousAssignedToName: oldName || null,
         assignedAt: new Date()
       })
       await addSubdoc('tenders', id, 'activities', {
@@ -141,13 +141,14 @@ export default function TenderDetail() {
         <IconButton onClick={() => navigate('/tenders')}><ArrowBack /></IconButton>
         <Box sx={{ ml: 1, flex: 1 }}>
           <Typography variant="h5" sx={{ fontWeight: 700 }}>{tender.title || tender.tenderNumber || 'Untitled'}</Typography>
-          <Typography variant="caption" color="text.secondary">{tender.tenderCode}</Typography>
+          <Typography variant="caption" color="text.secondary">
+            {tender.tenderCode}{tender.batchId && ` • Batch: ${tender.batchId}`}
+          </Typography>
         </Box>
         <Chip label={tenderStatusLabel(tender.status)}
           sx={{ bgcolor: `${tenderStatusColor(tender.status)}20`, color: tenderStatusColor(tender.status), fontWeight: 600 }} />
       </Stack>
 
-      {/* Countdown banner */}
       {tender.submissionDeadline && (
         <Card sx={{ mb: 2, bgcolor: countdownBg, border: 'none' }}>
           <CardContent>
@@ -175,6 +176,9 @@ export default function TenderDetail() {
                   <Typography variant="h5" sx={{ color: 'primary.main', fontWeight: 700 }}>
                     {formatINRFull(tender.estimatedValue)}
                   </Typography>
+                  {tender.quantity > 1 && (
+                    <Typography variant="caption" color="text.secondary">Qty: {tender.quantity}</Typography>
+                  )}
                 </Box>
               </Stack>
               <TextField size="small" select fullWidth label="Change status" value={tender.status}
@@ -190,23 +194,63 @@ export default function TenderDetail() {
               <Grid container spacing={2}>
                 <InfoField label="Tender Number" value={tender.tenderNumber} />
                 <InfoField label="Authority" value={tender.authority === 'Other' ? tender.authorityOther : tender.authority} />
-                <InfoField label="Tender Date" value={formatDate(tender.tenderDate)} />
-                <InfoField label="Pre-bid Meeting" value={formatDateTime(tender.preBidMeetingDate)} />
+                <InfoField label="Quantity" value={tender.quantity} />
+                <InfoField label="Batch / RC" value={tender.batchId} />
+                {tender.portalUrl && (
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="caption" color="text.secondary">Portal</Typography>
+                    <Box>
+                      <Link href={tender.portalUrl} target="_blank" rel="noopener" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.5 }}>
+                        Open portal <Launch fontSize="small" />
+                      </Link>
+                    </Box>
+                  </Grid>
+                )}
+                <InfoField label="Contact Person" value={tender.contactPerson} />
+                <InfoField label="Contact Phone" value={tender.contactPhone} />
+              </Grid>
+            </CardContent>
+          </Card>
+
+          <Card sx={{ mb: 2 }}>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>📅 Timeline</Typography>
+              <Grid container spacing={2}>
+                <InfoField label="Bid Submission Start" value={formatDateTime(tender.bidSubmissionStart)} />
                 <InfoField label="Submission Deadline" value={formatDateTime(tender.submissionDeadline)} />
+                <InfoField label="Pre-bid Meeting" value={formatDateTime(tender.preBidMeetingDate)} />
+                <InfoField label="Physical Submission Start" value={formatDate(tender.physicalSubmissionStart)} />
+                <InfoField label="Physical Submission End" value={formatDate(tender.physicalSubmissionEnd)} />
+                <InfoField label="Online Opening" value={formatDateTime(tender.onlineOpeningDate)} />
                 <InfoField label="Result Date" value={formatDate(tender.resultDate)} />
               </Grid>
             </CardContent>
           </Card>
 
-          {(tender.emdAmount > 0 || tender.pbgAmount > 0) && (
+          {(tender.tenderFee > 0 || tender.emdAmount > 0 || tender.pbgAmount > 0) && (
             <Card sx={{ mb: 2 }}>
               <CardContent>
                 <Typography variant="h6" gutterBottom>💰 Money & Guarantees</Typography>
                 <Grid container spacing={2}>
+                  <InfoField label="Tender Fee" value={tender.tenderFee > 0 ? formatINRFull(tender.tenderFee) : ''} />
                   <InfoField label="EMD Amount" value={tender.emdAmount > 0 ? formatINRFull(tender.emdAmount) : ''} />
                   <InfoField label="EMD Validity" value={tender.emdValidityDays > 0 ? `${tender.emdValidityDays} days` : ''} />
                   <InfoField label="EMD Refunded" value={tender.emdRefunded ? '✅ Yes' : '⏳ No'} />
                   <InfoField label="PBG Amount" value={tender.pbgAmount > 0 ? formatINRFull(tender.pbgAmount) : ''} />
+                  <InfoField label="Security Deposit %" value={tender.sdPercent ? `${tender.sdPercent}%` : ''} />
+                </Grid>
+              </CardContent>
+            </Card>
+          )}
+
+          {(tender.warrantyYears || tender.cmcYears || tender.deliveryDays) && (
+            <Card sx={{ mb: 2 }}>
+              <CardContent>
+                <Typography variant="h6" gutterBottom>🛠️ Contract Terms</Typography>
+                <Grid container spacing={2}>
+                  <InfoField label="Warranty" value={tender.warrantyYears ? `${tender.warrantyYears} years` : ''} />
+                  <InfoField label="CMC Period" value={tender.cmcYears ? `${tender.cmcYears} years` : ''} />
+                  <InfoField label="Delivery Time" value={tender.deliveryDays ? `${tender.deliveryDays} days` : ''} />
                 </Grid>
               </CardContent>
             </Card>
@@ -311,7 +355,7 @@ export default function TenderDetail() {
                 value={tender.assignedTo || ''} onChange={(e) => handleReassign(e.target.value)}
                 sx={{ mt: 1 }}>
                 {eligibleAssignees.map(u => (
-                  <MenuItem key={u.uid} value={u.uid}>{u.name} ({roleLabel(u.role)})</MenuItem>
+                  <MenuItem key={u.id} value={u.id}>{u.name} ({roleLabel(u.role)})</MenuItem>
                 ))}
               </TextField>
             </CardContent>
@@ -361,103 +405,12 @@ function NewTenderForm({ onCancel, onCreated }) {
   const { user } = useAuth()
   const [form, setForm] = useState({
     tenderNumber: '', title: '', authority: 'GMSCL', authorityOther: '',
-    submissionDeadline: '', resultDate: '',
-    emdAmount: '', emdValidityDays: '', pbgAmount: '', estimatedValue: '',
-    status: 'DRAFT', winProbability: 50, notes: ''
-  })
-  const [saving, setSaving] = useState(false)
-  const [snackbar, setSnackbar] = useState(null)
-
-  const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
-
-  const submit = async () => {
-    if (!form.title && !form.tenderNumber) {
-      setSnackbar({ severity: 'warning', msg: 'Enter title or tender number' })
-      return
-    }
-    setSaving(true)
-    try {
-      const code = await generateCode('tenders', 'TND')
-      const ref = await createDoc('tenders', {
-        tenderCode: code,
-        tenderNumber: form.tenderNumber, title: form.title,
-        authority: form.authority, authorityOther: form.authorityOther,
-        submissionDeadline: form.submissionDeadline ? Timestamp.fromDate(new Date(form.submissionDeadline)) : null,
-        resultDate: form.resultDate ? Timestamp.fromDate(new Date(form.resultDate)) : null,
-        emdAmount: Number(form.emdAmount) || 0,
-        emdValidityDays: Number(form.emdValidityDays) || 0,
-        pbgAmount: Number(form.pbgAmount) || 0,
-        estimatedValue: Number(form.estimatedValue) || 0,
-        status: form.status,
-        winProbability: Number(form.winProbability) || 50,
-        notes: form.notes,
-        items: [], competitors: [],
-        assignedTo: user.uid, assignedToName: user.name,
-        assignedAt: new Date(),
-        createdBy: user.uid, createdByName: user.name
-      })
-      await addSubdoc('tenders', ref.id, 'activities', {
-        type: 'TENDER_CREATED', notes: 'Tender created',
-        authorUid: user.uid, authorName: user.name
-      })
-      onCreated(ref.id)
-    } catch (err) {
-      setSnackbar({ severity: 'error', msg: err.message })
-      setSaving(false)
-    }
-  }
-
-  return (
-    <Box>
-      <Stack direction="row" alignItems="center" mb={2}>
-        <IconButton onClick={onCancel}><ArrowBack /></IconButton>
-        <Typography variant="h5" sx={{ ml: 1, fontWeight: 700 }}>New Tender</Typography>
-      </Stack>
-      <Card>
-        <CardContent>
-          <Grid container spacing={2}>
-            <Grid item xs={12}><Typography variant="subtitle2" color="primary">Identification</Typography></Grid>
-            <Grid item xs={12} sm={4}><TextField fullWidth label="Tender Number" value={form.tenderNumber} onChange={(e) => set('tenderNumber', e.target.value)} /></Grid>
-            <Grid item xs={12} sm={8}><TextField fullWidth label="Title *" value={form.title} onChange={(e) => set('title', e.target.value)} /></Grid>
-            <Grid item xs={6} sm={4}>
-              <TextField fullWidth select label="Authority" value={form.authority} onChange={(e) => set('authority', e.target.value)}>
-                {TenderAuthorities.map(a => <MenuItem key={a} value={a}>{a}</MenuItem>)}
-              </TextField>
-            </Grid>
-            {form.authority === 'Other' && (
-              <Grid item xs={6} sm={4}><TextField fullWidth label="Authority name" value={form.authorityOther} onChange={(e) => set('authorityOther', e.target.value)} /></Grid>
-            )}
-
-            <Grid item xs={12} sx={{ mt: 1 }}><Typography variant="subtitle2" color="primary">Dates</Typography></Grid>
-            <Grid item xs={12} sm={6}><TextField fullWidth type="datetime-local" label="Submission Deadline" InputLabelProps={{ shrink: true }} value={form.submissionDeadline} onChange={(e) => set('submissionDeadline', e.target.value)} /></Grid>
-            <Grid item xs={12} sm={6}><TextField fullWidth type="date" label="Result Date" InputLabelProps={{ shrink: true }} value={form.resultDate} onChange={(e) => set('resultDate', e.target.value)} /></Grid>
-
-            <Grid item xs={12} sx={{ mt: 1 }}><Typography variant="subtitle2" color="primary">Money</Typography></Grid>
-            <Grid item xs={6} sm={3}><TextField fullWidth type="number" label="EMD Amount" value={form.emdAmount} onChange={(e) => set('emdAmount', e.target.value)} /></Grid>
-            <Grid item xs={6} sm={3}><TextField fullWidth type="number" label="EMD Days" value={form.emdValidityDays} onChange={(e) => set('emdValidityDays', e.target.value)} /></Grid>
-            <Grid item xs={6} sm={3}><TextField fullWidth type="number" label="PBG Amount" value={form.pbgAmount} onChange={(e) => set('pbgAmount', e.target.value)} /></Grid>
-            <Grid item xs={6} sm={3}><TextField fullWidth type="number" label="Estimated Value" value={form.estimatedValue} onChange={(e) => set('estimatedValue', e.target.value)} /></Grid>
-
-            <Grid item xs={12} sx={{ mt: 1 }}><Typography variant="subtitle2" color="primary">Status</Typography></Grid>
-            <Grid item xs={6} sm={4}>
-              <TextField fullWidth select label="Bid Status" value={form.status} onChange={(e) => set('status', e.target.value)}>
-                {ALL_TENDER_STATUS.map(s => <MenuItem key={s} value={s}>{tenderStatusLabel(s)}</MenuItem>)}
-              </TextField>
-            </Grid>
-            <Grid item xs={6} sm={4}><TextField fullWidth type="number" label="Win Probability %" value={form.winProbability} onChange={(e) => set('winProbability', e.target.value)} /></Grid>
-            <Grid item xs={12}><TextField fullWidth multiline rows={3} label="Notes" value={form.notes} onChange={(e) => set('notes', e.target.value)} /></Grid>
-          </Grid>
-          <Stack direction="row" spacing={1} justifyContent="flex-end" mt={3}>
-            <Button onClick={onCancel}>Cancel</Button>
-            <Button variant="contained" onClick={submit} disabled={saving} startIcon={<Save />}>
-              {saving ? 'Saving...' : 'Create Tender'}
-            </Button>
-          </Stack>
-        </CardContent>
-      </Card>
-      <Snackbar open={!!snackbar} autoHideDuration={3000} onClose={() => setSnackbar(null)}>
-        {snackbar && <Alert severity={snackbar.severity}>{snackbar.msg}</Alert>}
-      </Snackbar>
-    </Box>
-  )
-}
+    batchId: '', quantity: 1,
+    bidSubmissionStart: '', submissionDeadline: '', preBidMeetingDate: '',
+    physicalSubmissionStart: '', physicalSubmissionEnd: '',
+    onlineOpeningDate: '', resultDate: '',
+    tenderFee: '', emdAmount: '', emdValidityDays: '', pbgAmount: '', sdPercent: 5,
+    estimatedValue: '',
+    portalUrl: '', contactPerson: '', contactPhone: '',
+    warrantyYears: '', cmcYears: '', deliveryDays: '',
+    status: 'DRAF
