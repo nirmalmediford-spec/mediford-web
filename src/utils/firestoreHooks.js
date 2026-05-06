@@ -22,7 +22,13 @@ export function useCollection(collectionName, options = {}) {
     if (constraints.length > 0) q = query(q, ...constraints)
 
     const unsub = onSnapshot(q, (snap) => {
-      const list = snap.docs.map((d) => ({ id: d.id, ...d.data() }))
+      const list = snap.docs.map((d) => {
+        const docData = d.data()
+        // For users collection, doc ID is the auth UID — alias it as `uid` so all comparisons work.
+        return collectionName === 'users'
+          ? { id: d.id, ...docData, uid: d.id }
+          : { id: d.id, ...docData }
+      })
       setData(list)
       setLoading(false)
     }, (err) => {
