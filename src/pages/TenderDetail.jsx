@@ -413,4 +413,9 @@ function NewTenderForm({ onCancel, onCreated }) {
     estimatedValue: '',
     portalUrl: '', contactPerson: '', contactPhone: '',
     warrantyYears: '', cmcYears: '', deliveryDays: '',
-    status: 'DRAF
+    status: 'DRAF<Snackbar open={!!snackbar} autoHideDuration={3000} onClose={() => setSnackbar(null)}>
+        {snackbar && <Alert severity={snackbar.severity}>{snackbar.msg}</Alert>}
+      </Snackbar>
+    </Box>
+  )
+}
