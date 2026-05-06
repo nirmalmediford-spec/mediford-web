@@ -24,7 +24,7 @@ export function useCollection(collectionName, options = {}) {
     const unsub = onSnapshot(q, (snap) => {
       const list = snap.docs.map((d) => {
         const docData = d.data()
-        // For users collection, doc ID is the auth UID — alias it as `uid` so all comparisons work.
+        // For users, doc ID is the auth UID — alias it as `uid` so all comparisons work.
         return collectionName === 'users'
           ? { id: d.id, ...docData, uid: d.id }
           : { id: d.id, ...docData }
@@ -44,7 +44,6 @@ export function useCollection(collectionName, options = {}) {
   return { data, loading, error }
 }
 
-// Live stream a single document.
 export function useDoc(collectionName, docId) {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -65,7 +64,6 @@ export function useDoc(collectionName, docId) {
   return { data, loading }
 }
 
-// CRUD helpers
 export const createDoc = (collectionName, payload) =>
   addDoc(collection(db, collectionName), {
     ...payload,
@@ -88,7 +86,6 @@ export const setDocById = (collectionName, id, payload) =>
 export const deleteDocById = (collectionName, id) =>
   deleteDoc(doc(db, collectionName, id))
 
-// Subcollection helpers
 export const useSubcollection = (parentColl, parentId, subColl, opts = {}) => {
   const [data, setData] = useState([])
   const [loading, setLoading] = useState(true)
@@ -117,7 +114,6 @@ export const addSubdoc = (parentColl, parentId, subColl, payload) =>
     createdAt: serverTimestamp()
   })
 
-// Generate next sequential code (LEAD-2026-0001 / TND-2026-0001)
 export const generateCode = async (collectionName, prefix) => {
   const year = new Date().getFullYear()
   const yearStart = new Date(year, 0, 1)
