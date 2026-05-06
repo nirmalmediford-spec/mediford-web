@@ -41,14 +41,12 @@ export default function App() {
         {canSeeLeads(user.role) && (
           <>
             <Route path="/leads" element={<LeadsPage />} />
-            <Route path="/leads/new" element={<LeadDetail />} />
             <Route path="/leads/:id" element={<LeadDetail />} />
           </>
         )}
         {canSeeTenders(user.role) && (
           <>
             <Route path="/tenders" element={<TendersPage />} />
-            <Route path="/tenders/new" element={<TenderDetail />} />
             <Route path="/tenders/:id" element={<TenderDetail />} />
           </>
         )}
