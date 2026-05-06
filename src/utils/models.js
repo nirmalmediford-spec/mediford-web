@@ -1,5 +1,4 @@
 // Mirrors the Roles object in the Android app's Models.kt.
-// Keep this in sync with the Android code so behavior matches.
 
 export const Roles = {
   ADMIN: 'ADMIN',
@@ -108,8 +107,23 @@ export const tenderStatusColor = (s) => ({
   CANCELLED: '#64748B'
 }[s] || '#94A3B8')
 
+// Tender authorities — added Civil Hospital Ahmedabad and other common hospital tender bodies
 export const TenderAuthorities = [
   'GMSCL', 'CGHS', 'GeM', 'ESIC', 'RMSCL', 'TNMSC', 'HLL Lifecare', 'AIIMS',
+  'Civil Hospital Ahmedabad', 'Sola Civil Hospital', 'GCS Hospital',
   'Railway Hospital', 'Defence (DGAFMS)', 'State Health Dept',
   'Private Hospital Tender', 'Other'
 ]
+
+// Common portals for tender submission
+export const TenderPortals = [
+  { name: 'nProcure (Gujarat)', url: 'https://www.ch.nprocure.com' },
+  { name: 'GeM Portal', url: 'https://gem.gov.in' },
+  { name: 'Central Public Procurement Portal', url: 'https://eprocure.gov.in' },
+  { name: 'GMSCL Portal', url: 'https://gmscl.gujarat.gov.in' },
+  { name: 'CGHS Portal', url: 'https://cghs.gov.in' }
+]
+
+// Common warranty + CMC durations in years
+export const WARRANTY_OPTIONS = [1, 2, 3, 5, 7]
+export const CMC_OPTIONS = [0, 3, 5, 7, 10]
