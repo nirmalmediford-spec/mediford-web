@@ -7,7 +7,7 @@ import {
 } from '@mui/material'
 import {
   Menu as MenuIcon, Dashboard as DashboardIcon, ListAlt, Description,
-  CalendarMonth, PrintOutlined, Group, Person, Logout, BusinessCenter
+  CalendarMonth, PrintOutlined, Group, Person, Logout, BusinessCenter, Inventory
 } from '@mui/icons-material'
 import { useAuth } from '../contexts/AuthContext'
 import { canSeeLeads, canSeeTenders, canManageTeam, roleLabel } from '../utils/models'
@@ -28,6 +28,7 @@ export default function Layout() {
     { label: 'Dashboard', path: '/', icon: <DashboardIcon /> },
     canSeeLeads(user.role) && { label: 'Leads', path: '/leads', icon: <ListAlt /> },
     canSeeTenders(user.role) && { label: 'Tenders', path: '/tenders', icon: <Description /> },
+    canSeeTenders(user.role) && { label: 'Batches', path: '/batches', icon: <Inventory /> },
     { label: 'Calendar', path: '/calendar', icon: <CalendarMonth /> },
     { label: 'Reports', path: '/reports', icon: <PrintOutlined /> },
     canManageTeam(user.role) && { label: 'Team', path: '/team', icon: <Group /> }
