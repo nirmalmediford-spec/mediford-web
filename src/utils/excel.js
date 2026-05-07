@@ -108,25 +108,47 @@ export const excelRowsToLeads = (rows) => rows.map((r) => ({
   notes: r['Notes'] || r['notes'] || ''
 }))
 
-// Parse a date string from Excel - tries multiple formats common in Indian govt tenders
+// Robust date parser for Indian govt tender Excels.
+// Handles ALL of: Date objects, ISO (yyyy-mm-dd), Indian (dd-mm-yyyy), with optional times.
+// CRITICAL: tries ISO and Indian regexes BEFORE native Date() because new Date("10-06-2026")
+// is interpreted as October 6 in US format browsers (Chrome on Android).
 const parseDate = (val) => {
-  if (!val) return null
-  if (val instanceof Date) return val
+  if (val === null || val === undefined || val === '') return null
+  if (val instanceof Date) return isNaN(val.getTime()) ? null : val
   const s = String(val).trim()
   if (!s) return null
-  // Try ISO first
-  let d = new Date(s)
-  if (!isNaN(d.getTime())) return d
-  // Try DD-MM-YYYY HH:mm format (common in Indian tenders: "10-06-2026 18:00")
-  const m = s.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})(?:\s+(\d{1,2}):(\d{2}))?/)
-  if (m) {
-    const [, dd, mm, yyyy, hh = '0', min = '0'] = m
-    return new Date(Number(yyyy), Number(mm) - 1, Number(dd), Number(hh), Number(min))
+
+  // 1. ISO format: yyyy-mm-dd or yyyy-mm-dd hh:mm or yyyy-mm-ddThh:mm
+  //    SheetJS outputs this when cellDates:true + numFmt "yyyy-mm-dd".
+  const iso = s.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})(?:[\sT](\d{1,2}):(\d{2}))?/)
+  if (iso) {
+    const [, yyyy, mm, dd, hh = '0', min = '0'] = iso
+    const m = Number(mm), d = Number(dd)
+    if (m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+      return new Date(Number(yyyy), m - 1, d, Number(hh), Number(min))
+    }
   }
+
+  // 2. Indian DD-MM-YYYY format: "10-06-2026" or "10-06-2026 18:00" or "10/06/2026"
+  //    Standard for Indian govt tenders (GMSCL, Civil Hospital, GeM, etc.)
+  const indian = s.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})(?:[\sT](\d{1,2}):(\d{2}))?/)
+  if (indian) {
+    const [, p1, p2, yyyy, hh = '0', min = '0'] = indian
+    let dd = Number(p1), mm = Number(p2)
+    // If month > 12 but day <= 12, the file used MM-DD-YYYY — swap
+    if (mm > 12 && dd <= 12) { [dd, mm] = [mm, dd] }
+    if (mm >= 1 && mm <= 12 && dd >= 1 && dd <= 31) {
+      return new Date(Number(yyyy), mm - 1, dd, Number(hh), Number(min))
+    }
+  }
+
+  // 3. Last resort: native Date parser (handles RFC, Excel serial numbers, etc.)
+  const d = new Date(s)
+  if (!isNaN(d.getTime())) return d
+
   return null
 }
 
-// Map Excel rows to Tender objects ready for Firestore
 export const excelRowsToTenders = (rows) => rows.map((r) => {
   const get = (...keys) => {
     for (const k of keys) {
